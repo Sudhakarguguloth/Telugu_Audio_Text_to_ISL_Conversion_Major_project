@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+
+    <!-- Left Section -->
+    <div class="split left">
+        <h2 class="heading">Enter Text or Use Mic</h2>
+
+        <form action="" method="post" class="centered-form">
+            {% csrf_token %}
+
+            <!-- Language selection dropdown -->
+            <div class="form-group">
+                <select name="category" class="dropdown">
+                    <option value="Telugu">Telugu</option>
+                </select>
+            </div>
+
+            <!-- Text input field -->
+            <div class="form-group">
+                <input type="text" name="sen" id="speechToText" placeholder="Enter your text" class="text-input">
+            </div>
+
+            <!-- Microphone button -->
+            <div class="form-group">
+                <button type="button" class="mic-button" onclick="record()">
+                    <img src="{% static 'mic3.png' %}" alt="Mic" class="mic-icon">
+                </button>
+            </div>
+
+            <!-- Submit button -->
+            <div class="form-group">
+                <input type="submit" value="Submit" class="submit-button">
+            </div>
+        </form>
+
+        <!-- Display table for text and keywords -->
+        <div class="keywords-container">
+            <table class="data-table">
+                <tr>
+                    <td>The text you entered is:</td>
+                    <td>{{ text }}</td>
+                </tr>
+                <tr>
+                    <td>Key words in sentence:</td>
+                    <td>
+                        <!-- Visible list for keywords (tel_words) -->
+                        <ul id="list" class="keywords-list">
+                            {% for word in tel_words %}
+                                <li id="{{ forloop.counter }}">{{ word }}</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- Invisible list for parsing -->
+            <table style="display:none;">
+                <tr>
+                    <td>Key words for parsing:</td>
+                    <td>
+                        <ul id="invisibleList" class="keywords-list">
+                            {% for word in words %}
+                                <li id="{{ forloop.counter }}">{{ word }}</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- Right Section -->
+    <div class="split right">
+        <h2 class="heading">Sign Language Animation</h2>
+
+        <div class="video-container">
+            <button class="play-button" onclick="playPause()">Play/Pause</button>
+
+            <video id="videoPlayer" class="video-player" preload="auto" autoplay>
+                <source src="" type="video/mp4">
+                Your browser does not support HTML5 video.
+            </video>
+
+            <!-- Translated Word Section -->
+            <div id="translatedWord" class="translated-word-container">
+                <p id="translatedWordText" class="translated-word-text"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function record() {
+        var recognition = new webkitSpeechRecognition();
+        var selectedLanguage = document.querySelector('select[name="category"]').value;
+        var languageMap = { 'Telugu': 'te-IN', 'Hindi': 'hi-IN', 'English': 'en-IN' };
+        recognition.lang = languageMap[selectedLanguage] || 'en-IN';
+
+        recognition.onresult = function(event) {
+            document.getElementById('speechToText').value = event.results[0][0].transcript;
+        };
+        recognition.start();
+    }
+
+    function play() {
+        var videoSource = Array.from(document.querySelectorAll("#invisibleList li"), li => "/static/" + li.innerHTML + ".mp4");
+        let currentVideo = 0;
+        let currentWordIndex = 0;
+
+        function playNextVideo() {
+            if (currentVideo < videoSource.length) {
+                const listItems = document.querySelectorAll("#invisibleList li");
+                listItems.forEach((li, index) => {
+                    li.style.color = index === currentVideo ? "#09edc7" : "#feda6a";
+                    li.style.fontSize = index === currentVideo ? "xx-large" : "20px";
+                });
+
+                const player = document.getElementById("videoPlayer");
+                player.src = videoSource[currentVideo];
+                player.play();
+
+                // Highlight corresponding word in the visible list
+                const visibleItems = document.querySelectorAll("#list li");
+                const currentWord = listItems[currentVideo].textContent;
+
+                if (currentWord.length > 1) {
+                    // Highlight full word
+                    visibleItems[currentWordIndex].style.color = "#09edc7"; // Highlight color
+                    visibleItems[currentWordIndex].style.fontSize = "xx-large"; // Change font size
+                    currentWordIndex++; // Move to the next word in the visible list
+                } else {
+                    // If it's a single letter, highlight the current word and don't move to the next word
+                    visibleItems[currentWordIndex].style.color = "#09edc7"; // Highlight color
+                    visibleItems[currentWordIndex].style.fontSize = "xx-large"; // Font size change
+                    // Stay on the same word, don't increment currentWordIndex
+                }
+
+                // Update the translated word under the video
+                const translatedWord = document.getElementById("translatedWordText");
+                translatedWord.textContent = currentWord; // Use the word from the list
+
+                currentVideo++;
+            }
+        }
+
+        const player = document.getElementById("videoPlayer");
+        player.addEventListener('ended', playNextVideo);
+        playNextVideo();
+    }
+
+    function playPause() {
+        const player = document.getElementById("videoPlayer");
+        if (player.paused) {
+            play();
+        } else {
+            player.pause();
+        }
+    }
+</script>
+
+
+<style>
+    /* General container layout */
+    .container {
+        display: flex;
+        justify-content: space-between;
+        padding: 20px;
+        min-height: 100vh;
+        background-color: #f9f9f9;
+    }
+
+    .split {
+        width: 48%;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    .left {
+        background-color: #f0f0f0;
+        border-radius: 8px;
+    }
+
+    .right {
+        background-color: #eaeaea;
+        border-radius: 8px;
+    }
+
+    /* Typography */
+    .heading {
+        text-align: center;
+        color: #333;
+        font-size: 24px;
+        margin-bottom: 20px;
+    }
+
+    /* Form and input styling */
+    .centered-form {
+        text-align: center;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .dropdown, .text-input {
+        width: 100%;
+        max-width: 300px;
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+    }
+
+    .text-input {
+        height: 40px;
+    }
+
+    .mic-button {
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+
+    .mic-icon {
+        width: 40px;
+        height: 35px;
+    }
+
+    .submit-button {
+        padding: 12px 25px;
+        font-size: 16px;
+        color: #fff;
+        background-color: #009688;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    /* Table and keywords styling */
+    .keywords-container {
+        margin-top: 30px;
+        padding-top: 20px;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .data-table td {
+        padding: 10px;
+        border: 1px solid #ccc;
+        font-size: 18px;
+        color: #333;
+    }
+
+    .keywords-list {
+        list-style: none;
+        padding: 0;
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    .keywords-list li {
+        font-size: 18px;
+        color: #ff0000;
+    }
+
+    /* Video section styling */
+    .video-container {
+        text-align: center;
+    }
+
+    .play-button {
+        padding: 10px 20px;
+        font-size: 16px;
+        color: #fff;
+        background-color: #009688;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-bottom: 20px;
+    }
+
+    .video-player {
+        width: 100%;
+        max-width: 600px;
+        height: 350px;
+        border-radius: 10px;
+    }
+
+    /* Translated word section */
+    .translated-word-container {
+        margin-top: 20px;
+        font-size: 20px;
+        color: #333;
+    }
+
+    .translated-word-text {
+        font-size: 22px;
+        font-weight: bold;
+        color: #00796b;
+    }
+</style>
+{% endblock %}
